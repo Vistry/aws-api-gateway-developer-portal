@@ -1,3 +1,71 @@
+# Vistry README:
+
+Step 1: Create a private S3 bucket named vistry-api-dev-portal-artifacts
+```
+YOUR_LAMBDA_ARTIFACTS_BUCKET_NAME=vistry-discrn-dev-portal-artifacts
+aws s3 mb s3://$YOUR_LAMBDA_ARTIFACTS_BUCKET_NAME
+```
+Step 2: Execute the following command to generate the packaged.yaml file
+(This is possibly optional in recent versions of SAM...)
+```
+sam package --template-file ./cloudformation/template.yaml \
+    --output-template-file ./cloudformation/packaged.yaml \
+    --s3-bucket $YOUR_LAMBDA_ARTIFACTS_BUCKET_NAME
+```
+
+Step 3: Deploy
+Note: the only way that worked for first time deployment was "guided" - we needed to build the aws-sam-cli-managed-default cloudformation stack first.
+```
+sam deploy --template-file ./cloudformation/template.yaml \
+    --stack-name "discrn-portal" \
+    --s3-bucket $YOUR_LAMBDA_ARTIFACTS_BUCKET_NAME \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --guided \
+    --parameter-overrides \
+    StaticAssetRebuildToken=$(uuidgen) \
+    StaticAssetRebuildMode=overwrite-content \
+    DevPortalSiteS3BucketName="vistry-discrn-dev-portal-static-assets" \
+    ArtifactsS3BucketName="vistry-discrn-dev-portal-artifacts" \
+    CognitoDomainNameOrPrefix="vistry-discrn" \
+    AccountRegistrationMode="invite"
+
+```
+### Update
+```
+# To update changes on front end, first build the site:
+# You may need to install things first:
+node run reinstall
+# Then build
+node run build
+
+# Then run deployment via sam
+sam deploy --template-file ./cloudformation/template.yaml \
+    --stack-name "discrn-portal" \
+    --s3-bucket $YOUR_LAMBDA_ARTIFACTS_BUCKET_NAME \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides \
+    StaticAssetRebuildToken=$(uuidgen) \
+    StaticAssetRebuildMode=overwrite-content \
+    DevPortalSiteS3BucketName="vistry-discrn-dev-portal-static-assets" \
+    ArtifactsS3BucketName="vistry-discrn-dev-portal-artifacts" \
+    CognitoDomainNameOrPrefix="vistry-discrn" \
+    AccountRegistrationMode="invite"
+```
+
+If static assets not updating...this is a brute force way to update. Don't rely on this hack.
+```
+aws s3 cp dev-portal/public s3://vistry-discrn-dev-portal-static-assets/ --recursive
+
+```
+
+### Cleanup
+```
+# remove S3 buckets
+aws s3 rb s3://vistry-discrn-dev-portal-static-assets --force
+aws s3 rb s3://vistry-discrn-dev-portal-artifacts --force
+#Delete cloudformation stack
+aws cloudformation delete-stack --stack-name=discrn-portal
+```
 ## Introduction
 [![Build Status](https://travis-ci.org/awslabs/aws-api-gateway-developer-portal.svg?branch=master)](https://travis-ci.org/awslabs/aws-api-gateway-developer-portal)
 
